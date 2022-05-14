@@ -1,0 +1,202 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+
+# Other Libraries
+
+# Visualizing NaN values
+
+import missingno as msno
+
+# Visualization
+
+import plotly.express as px
+import plotly.graph_objs as go
+import plotly.io as pio
+from plotly.subplots import make_subplots
+
+# Calendar
+
+import calendar
+
+# Geocode
+
+from geopy.geocoders import Nominatim
+from geopy.distance import geodesic
+import folium
+from folium import plugins
+import ipywidgets
+from branca.element import Figure
+
+
+# Plotly Options and Config
+
+pio.templates.default = 'plotly_white'
+config = {'displayModeBar': False}
+colors_x = ['#E0C95A', '#CBE0CA', '#E0864E', '#CDCCE3', '#E3B8D1']
+cmaps = 'Blues'
+
+
+df = pd.read_csv('supermarket_sales.csv')
+df.head()
+
+
+city_data = df.City.unique()
+cities = pd.DataFrame(data = city_data, columns = {'city_name'})
+cities
+
+nom = Nominatim(user_agent='Kaggle')
+
+def geo_cities(cities):
+    lat = []
+    long = []
+    flag = 0
+    for city in cities['city_name']:
+      location = nom.geocode(city)
+      try:
+        lat.append(location.latitude)
+        long.append(location.longitude)
+        print(flag)
+      except:
+        lat.append('NA')
+        long.append('NA')
+      flag += 1
+    cities['Latitude'] = lat
+    cities['Longitude'] = long 
+    
+#geo_cities(cities)
+# The geocoding doesn't seem to work in  kaggle notebook so i'll manually add  the output here.
+
+cities = pd.DataFrame({'city_name': ['Yangon', 'Naypyitaw', 'Mandalay'],
+                       'Latitude': [16.79671316,19.690708,21.981275],
+                       'Longitude' : [96.160992, 96.165883, 96.082375]})
+
+supermarket_geo = folium.Map(location = [19.680708,	96.265883], zoom_start = 7, tiles = 'CartoDB Positron', control_scale = True)
+
+fig = Figure(width = 800, height = 600)
+fig.add_child(supermarket_geo)
+
+for (index, row) in cities.iterrows():
+  folium.Marker(location = [row.loc['Latitude'], row.loc['Longitude']], popup = row.loc['city_name'],tooltip = 'click',
+                icon = folium.Icon(icon = 'glyphicon-shopping-cart', prefix = 'glyphicon')).add_to(supermarket_geo)
+
+supermarket_geo
+
+
+df['Date'] = pd.to_datetime(df['Date'])
+df['weekday'] = df['Date'].dt.day_name()
+
+df.set_index('Date', inplace=True)
+df.head()
+
+
+sns.distplot(df['Rating'])
+plt.axvline(x=np.mean(df['Rating']), c='red', ls='--', label='mean')
+plt.axvline(x=np.percentile(df['Rating'],25),c='green', ls='--', label = '25th percentile:Q1')
+plt.axvline(x=np.percentile(df['Rating'],75),c='orange', ls='--',label = '75th percentile:Q3' )
+plt.legend()
+
+
+sns.countplot(df['Branch'])
+
+
+df['Branch'].value_counts()
+
+
+sns.countplot(df['Payment'])
+
+
+sns.scatterplot(df['Rating'], df['gross income'])
+
+
+sns.regplot(df['Rating'], df['gross income'])
+
+
+
+sns.boxplot(x=df['Branch'], y=df['gross income'])
+
+
+sns.boxplot(x=df['Gender'], y=df['gross income'])
+
+
+df.groupby(df.index).mean()
+
+
+sns.lineplot(x= df.groupby(df.index).mean().index, 
+             y = df.groupby(df.index).mean()['gross income'])
+             
+       
+cat=df[["Product line", "gross income"]].groupby(['Product line'], as_index=False).sum().sort_values(by='gross income', ascending=False)
+plt.figure(figsize=(20,8))
+sns.barplot(x='Product line', y='gross income', data=cat)
+
+
+round(np.corrcoef(df['gross income'], df['Rating'])[1][0],2)
+
+np.round(df.corr(),2)
+
+sns.heatmap(np.round(df.corr(),2), annot=True)
+
+plt.figure(figsize=(12, 6))
+plt.title('Total Monthly transaction by Gender')
+sns.countplot(df['Product line'], hue = df.Gender)
+
+
+gender_dummies  = pd.get_dummies(df['Gender'])
+gender_dummies.head()
+
+
+df1 = pd.concat([df, gender_dummies], axis = 1)
+df1.head()
+
+
+plt.figure(figsize = (12,6))
+sns.barplot(x = 'Product line', y = 'Female', data = df1)
+
+
+plt.figure(figsize = (12,6))
+sns.barplot(x = 'Product line', y = 'Male', data = df1)
+
+
+xdata = [1,2,3,4,5,6,7,8,9,10]
+plt.figure(figsize = (12,6))
+sns.distplot(df['Quantity'])
+plt.xticks(xdata)
+
+
+plt.figure(figsize=(8, 6))
+plt.title('Daily Sales by Day of the Week')
+sns.countplot(df['weekday'])
+
+
+df['Time'] = pd.to_datetime(df['Time'])
+df['Hour'] = (df['Time']).dt.hour
+df['Hour'].unique()
+
+sns.lineplot(x="Hour",  y = 'Quantity',data =df).set_title("Product Sales per Hour")
+
+
+xdata = [0,1,2,3,4,5,6,7,8,9,10]
+plt.figure(figsize = (12,6))
+sns.barplot(y = df['Product line'], x = df['Rating'])
+plt.xticks(xdata)
+
+sns.boxenplot(y = 'Product line', x = 'Quantity', data=df )
+
+
+plt.figure(figsize=(20,7))
+sns.barplot(df['City'],df['gross income'],palette='Set1')
+plt.xlabel('City name',fontsize='16')
+plt.xticks(fontsize='16')
+plt.ylabel('Gross income',fontsize='16')
+plt.yticks(fontsize='16')
+
+
+plt.figure(dpi=125)
+sns.countplot(y ='Product line', hue = "City", data = df) 
+plt.xlabel('Count')
+plt.show()
+
+
